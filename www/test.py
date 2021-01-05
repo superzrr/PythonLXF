@@ -23,11 +23,11 @@ async def drop():
 	print('the number of afftecd row is :',result)
 
 	
-async def add():
+async def add(suffix):
     await orm.create_pool(loop,
     	user='www-data', password='www-data', 
     	db='awesome')
-    u = User(name='apple', email='apple@example.com', passwd='15335179426', image='about:blank')
+    u = User(name='apple'+suffix, email='apple'+suffix+'@example.com', passwd='15335179426', image='about:blank')
     await u.save()
     
 
@@ -40,15 +40,14 @@ async def add():
 #xloop.run_until_complete(test())
 
 loop = asyncio.get_event_loop()
-loop.run_until_complete(check())
+#loop.run_until_complete(check())
+#loop.run_until_complete(count())
+loop.run_until_complete(add('1'))
+loop.run_until_complete(add('2'))
+loop.run_until_complete(add('3'))
 loop.run_until_complete(count())
-loop.run_until_complete(add())
-loop.run_until_complete(count())
-loop.run_until_complete(drop())
-loop.run_until_complete(count())
-
-for x in check():
-	pass
+#loop.run_until_complete(drop())
+#loop.run_until_complete(count())
 	
 #loop.close()
 
