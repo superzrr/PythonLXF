@@ -1,12 +1,21 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+
+__author__ = 'Michael Liao'
+
 '''
 async web application.
 '''
 
 import logging; logging.basicConfig(level=logging.INFO)
+
 import asyncio, os, json, time
 from datetime import datetime
+
 from aiohttp import web
 from jinja2 import Environment, FileSystemLoader
+
+from config import configs
 
 import orm
 from vcoroweb import add_routes, add_static
@@ -32,26 +41,32 @@ def init_jinja2(app, **kw):
             env.filters[name] = f
     app['__templating__'] = env
 
+#@asyncio.coroutine
 async def logger_factory(app, handler):
+    #@asyncio.coroutine
     async def logger(request):
         logging.info('Request: %s %s' % (request.method, request.path))
-        # await asyncio.sleep(0.3)
+        # yield from asyncio.sleep(0.3)
         return (await handler(request))
     return logger
 
+#@asyncio.coroutine
 async def data_factory(app, handler):
-    async def parse_data(request):
+    @asyncio.coroutine
+    def parse_data(request):
         if request.method == 'POST':
             if request.content_type.startswith('application/json'):
-                request.__data__ = await request.json()
+                request.__data__ = yield from request.json()
                 logging.info('request json: %s' % str(request.__data__))
             elif request.content_type.startswith('application/x-www-form-urlencoded'):
-                request.__data__ = await request.post()
+                request.__data__ = yield from request.post()
                 logging.info('request form: %s' % str(request.__data__))
-        return (await handler(request))
+        return (yield from handler(request))
     return parse_data
 
-async def response_factory(app, handler): #response这个middleware把返回值转换为web.Response对象再返回，以保证满足aiohttp的要求
+#@asyncio.coroutine
+async def response_factory(app, handler):
+    #@asyncio.coroutine
     async def response(request):
         logging.info('Response handler...')
         r = await handler(request)
@@ -77,8 +92,8 @@ async def response_factory(app, handler): #response这个middleware把返回值�
                 resp = web.Response(body=app['__templating__'].get_template(template).render(**r).encode('utf-8'))
                 resp.content_type = 'text/html;charset=utf-8'
                 return resp
-        if isinstance(r, int) and r >= 100 and r < 600:
-            return web.Response(r)
+        if isinstance(r, int) and t >= 100 and t < 600:
+            return web.Response(t)
         if isinstance(r, tuple) and len(r) == 2:
             t, m = r
             if isinstance(t, int) and t >= 100 and t < 600:
@@ -89,7 +104,7 @@ async def response_factory(app, handler): #response这个middleware把返回值�
         return resp
     return response
 
-def datetime_filter(t): 
+def datetime_filter(t):
     delta = int(time.time() - t)
     if delta < 60:
         return u'1分钟前'
@@ -102,23 +117,23 @@ def datetime_filter(t):
     dt = datetime.fromtimestamp(t)
     return u'%s年%s月%s日' % (dt.year, dt.month, dt.day)
 
-async def init(): #加入middleware、jinja2模板和自注册的支持,response这个middleware把返回值转换为web.Response对象再返回，以保证满足aiohttp的要求
-    await orm.create_pool(loop=loop, host='localhost', port=3306, user='www-data', password='www-data', db='awesome')
+#@asyncio.coroutine
+async def init(loop):
+    await orm.create_pool(loop=loop, **configs.db)
     app = web.Application(middlewares=[
         logger_factory, response_factory
     ])
-    init_jinja2(app, filters=dict(datetime=datetime_filter)) ##filter需要在初始化jinja2时设置
-    add_routes(app, 'handlers') #自动把handler模块的所有符合条件的函数注册了:
+    init_jinja2(app, filters=dict(datetime=datetime_filter))
+    add_routes(app, 'handlers')
     add_static(app)
-#    srv = await loop.create_server(app.make_handler(), 'localhost', 9000) 换为以下四条代码
+#    srv = await loop.create_server(app.make_handler(), '127.0.0.1', 9000)
     app_runner = web.AppRunner(app)
     await app_runner.setup()
     srv = web.TCPSite(app_runner,'localhost',9000)
     await srv.start()
-
     logging.info('server started at http://localhost:9000...')
     return srv
 
-loop = asyncio.get_event_loop() 
-loop.run_until_complete(init())
+loop = asyncio.get_event_loop()
+loop.run_until_complete(init(loop))
 loop.run_forever()
