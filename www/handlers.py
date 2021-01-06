@@ -10,7 +10,7 @@ import markdown2
 from aiohttp import web
 
 from vcoroweb import get, post
-from apis import APIValueError,APIResourceNotFoundError
+from apis import Page,APIValueError,APIResourceNotFoundError
 
 from models import User, Comment, Blog, next_id
 from config import configs
@@ -21,6 +21,16 @@ _COOKIE_KEY = configs.session.secret
 def check_admin(request):
     if request.__user__ is None or not request.__user__.admin:
         raise APIPermissionError()
+
+def get_page_index(page_str):
+    p = 1
+    try:
+        p = int(page_str)
+    except ValueError as e:
+        pass
+    if p < 1:
+        p = 1
+    return p
 
 def user2cookie(user, max_age):
     '''
@@ -134,6 +144,13 @@ def signout(request):
     logging.info('user signed out.')
     return r
 
+@get('/manage/blogs')
+def manage_blogs(*, page='1'):
+    return {
+        '__template__': 'manage_blogs.html',
+        'page_index': get_page_index(page)
+    }
+
 @get('/manage/blogs/create')
 def manage_create_blog():
     return {
@@ -163,15 +180,24 @@ def api_register_user(*, email, name, passwd):
     user = User(id=uid, name=name.strip(), email=email, passwd=hashlib.sha1(sha1_passwd.encode('utf-8')).hexdigest(), image='http://www.gravatar.com/avatar/%s?d=mm&s=120' % hashlib.md5(email.encode('utf-8')).hexdigest())
     yield from user.save()
     # make session cookie:
-    print("***********************1")
     r = web.Response()
-    print("***********************2")
     r.set_cookie(COOKIE_NAME, user2cookie(user, 86400), max_age=86400, httponly=True)
-    print("***********************3")
     user.passwd = '******'
     r.content_type = 'application/json'
     r.body = json.dumps(user, ensure_ascii=False).encode('utf-8')
     return r
+
+@get('/api/blogs')
+@asyncio.coroutine
+def api_blogs(*, page='1'):
+    print('blog post was invoked***')
+    page_index = get_page_index(page)
+    num = yield from Blog.findNumber('count(id)')
+    p = Page(num, page_index)
+    if num == 0:
+        return dict(page=p, blogs=())
+    blogs = yield from Blog.findAll(orderBy='created_at desc', limit=(p.offset, p.limit))
+    return dict(page=p, blogs=blogs)
 
 @get('/api/blogs/{id}')
 @asyncio.coroutine
@@ -182,6 +208,7 @@ def api_get_blog(*, id):
 @post('/api/blogs')
 @asyncio.coroutine
 def api_create_blog(request, *, name, summary, content):
+    print('blog post was invoked***')
     check_admin(request)
     if not name or not name.strip():
         raise APIValueError('name', 'name cannot be empty.')
