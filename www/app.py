@@ -44,6 +44,7 @@ def init_jinja2(app, **kw):
     app['__templating__'] = env
 
 async def logger_factory(app, handler):
+    print('logger_factory invoked>>>>>>>>>>>>>>>>>>>>>>>>>>')
     async def logger(request):
         logging.info('Request: %s %s' % (request.method, request.path))
         return (await handler(request))
@@ -51,6 +52,7 @@ async def logger_factory(app, handler):
 
 @asyncio.coroutine
 def auth_factory(app, handler):
+    print("auth_factory invoked 1st>>>>>>>>>>>>>>>>>.")
     @asyncio.coroutine
     def auth(request):
         logging.info('check user: %s , %s' % (request.method, request.path))
@@ -58,7 +60,6 @@ def auth_factory(app, handler):
         cookie_str = request.cookies.get(COOKIE_NAME)
         if cookie_str:
             user = yield from cookie2user(cookie_str)
-            print("**********************",type(user))
             if user:
                 logging.info('set current user: %s' % user.email)
                 request.__user__ = user
@@ -80,9 +81,11 @@ async def data_factory(app, handler):
     return parse_data
 
 async def response_factory(app, handler):
+    print('response_factory invokded 2nd>>>>>>>>>>>>>>>>>>>>>>>>>>>.')
     async def response(request):
         logging.info('Response handler...')
         r = await handler(request)
+        print("************",type(r))
         if isinstance(r, web.StreamResponse):
             return r
         if isinstance(r, bytes):
@@ -90,6 +93,7 @@ async def response_factory(app, handler):
             resp.content_type = 'application/octet-stream'
             return resp
         if isinstance(r, str):
+            print('r is :>>>>>>>>>>>>>>>>>>',r)
             if r.startswith('redirect:'):
                 return web.HTTPFound(r[9:])
             resp = web.Response(body=r.encode('utf-8'))
@@ -97,6 +101,7 @@ async def response_factory(app, handler):
             return resp
         if isinstance(r, dict):
             template = r.get('__template__')
+            print('*************template:',r)
             if template is None:
                 resp = web.Response(body=json.dumps(r, ensure_ascii=False, default=lambda o: o.__dict__).encode('utf-8'))
                 resp.content_type = 'application/json;charset=utf-8'

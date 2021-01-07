@@ -126,7 +126,7 @@ def authenticate(*, email, passwd):
         raise APIValueError('passwd', 'Invalid password.')
     users = yield from User.findAll('email=?', [email])
     if len(users) == 0:
-        raise APIValueError('email', 'Email not exist.')
+        raise APIValueError('email', '邮箱地址不存在.')
     user = users[0]
     # check passwd:
     sha1 = hashlib.sha1()
@@ -134,7 +134,7 @@ def authenticate(*, email, passwd):
     sha1.update(b':')
     sha1.update(passwd.encode('utf-8'))
     if user.passwd != sha1.hexdigest():
-        raise APIValueError('passwd', 'Invalid password.')
+        raise APIValueError('passwd', '邮箱或密码不正确.')
     # authenticate ok, set cookie:
     r = web.Response()
     r.set_cookie(COOKIE_NAME, user2cookie(user, 86400), max_age=86400, httponly=True)
@@ -150,10 +150,13 @@ def signout(request):
     r.set_cookie(COOKIE_NAME, '-deleted-', max_age=0, httponly=True)
     logging.info('user signed out.')
     return r
+    # return 'redirect:/'
 
 @get('/manage/')
 def manage():
-    return 'redirect:/manage/comments'
+    # return 'redirect:/manage/comments'
+    return 'redirect:/manage/blogs'
+
 
 @get('/manage/comments')
 def manage_comments(*, page='1'):
@@ -271,6 +274,7 @@ def api_register_user(*, email, name, passwd):
 @get('/api/blogs')
 @asyncio.coroutine
 def api_blogs(*, page='1'):
+    print("I was invoked*******************")
     page_index = get_page_index(page)
     num = yield from Blog.findNumber('count(id)')
     p = Page(num, page_index)
@@ -288,6 +292,7 @@ def api_get_blog(*, id):
 @post('/api/blogs')
 @asyncio.coroutine
 def api_create_blog(request, *, name, summary, content):
+    print("Saving blog**************")
     check_admin(request)
     if not name or not name.strip():
         raise APIValueError('name', 'name cannot be empty.')
@@ -297,7 +302,7 @@ def api_create_blog(request, *, name, summary, content):
         raise APIValueError('content', 'content cannot be empty.')
     blog = Blog(user_id=request.__user__.id, user_name=request.__user__.name, user_image=request.__user__.image, name=name.strip(), summary=summary.strip(), content=content.strip())
     yield from blog.save()
-    return blog
+    return "/"
 
 @post('/api/blogs/{id}')
 @asyncio.coroutine

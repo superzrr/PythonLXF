@@ -18,7 +18,7 @@ function initVM(data) {
                 location.assign('/manage/blogs/edit?id=' + blog.id);
             },
             delete_blog: function (blog) {
-                if (confirm('确认要删除“' + blog.name + '”？删除后不可恢复！')) {
+                if (confirm('确认要删除“' + blog.name + '”？删除后不可恢复.')) {
                     postJSON('/api/blogs/' + blog.id + '/delete', function (err, r) {
                         if (err) {
                             return alert(err.message || err.error || err);
@@ -34,6 +34,7 @@ function initVM(data) {
 
 $(function() {
     getJSON('/api/blogs', {
+        // print('here is invoked manage_blogs.html function()>>>>>>>>>>>>>>>>>>>>>>>>>>')
         page: {{ page_index }}
     }, function (err, results) {
         if (err) {
@@ -91,8 +92,8 @@ $(function() {
                         <span v-text="blog.created_at.toDateTime()"></span>
                     </td>
                     <td>
-                        <a href="#0" v-on="click: edit_blog(blog)">修改<i class="uk-icon-edit"></i>
-                        <a href="#0" v-on="click: delete_blog(blog)">删除<i class="uk-icon-trash-o"></i>
+                        <a href="#0" v-on="click: edit_blog(blog)"><i class="uk-icon-edit"></i>
+                        <a href="#0" v-on="click: delete_blog(blog)"><i class="uk-icon-trash-o"></i>
                     </td>
                 </tr>
             </tbody>
